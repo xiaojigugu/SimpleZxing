@@ -34,7 +34,7 @@ final class AutoFocusManager implements Camera.AutoFocusCallback {
 
   private static final String TAG = AutoFocusManager.class.getSimpleName();
 
-  private static final long AUTO_FOCUS_INTERVAL_MS = 200;
+  private long AUTO_FOCUS_INTERVAL_MS;
   private static final Collection<String> FOCUS_MODES_CALLING_AF;
   static {
     FOCUS_MODES_CALLING_AF = new ArrayList<>(2);
@@ -48,7 +48,8 @@ final class AutoFocusManager implements Camera.AutoFocusCallback {
   private final Camera camera;
   private AsyncTask<?,?,?> outstandingTask;
 
-  AutoFocusManager(Context context, Camera camera) {
+  AutoFocusManager(Context context, Camera camera,long AUTO_FOCUS_INTERVAL_MS) {
+    this.AUTO_FOCUS_INTERVAL_MS=AUTO_FOCUS_INTERVAL_MS;
     this.camera = camera;
     SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
     String currentFocusMode = camera.getParameters().getFocusMode();
@@ -121,6 +122,7 @@ final class AutoFocusManager implements Camera.AutoFocusCallback {
     @Override
     protected Object doInBackground(Object... voids) {
       try {
+        Log.d(TAG,"AUTO_FOCUS_MS="+AUTO_FOCUS_INTERVAL_MS);
         Thread.sleep(AUTO_FOCUS_INTERVAL_MS);
       } catch (InterruptedException e) {
         // continue

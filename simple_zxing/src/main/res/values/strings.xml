@@ -15,7 +15,7 @@
  limitations under the License.
  -->
 <resources>
-  <string name="app_name">条码扫描器</string>
+  <string name="app_name">二维码扫描</string>
   <string name="contents_text">纯文本</string>
   <string name="menu_settings">设置</string>
   <string name="menu_share">创建二维码</string>

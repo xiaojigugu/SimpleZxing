@@ -38,15 +38,13 @@ import java.io.IOException;
  *
  * @author dswitkin@google.com (Daniel Switkin)
  */
-@SuppressWarnings("deprecation") // camera APIs
+// camera APIs
 public final class CameraManager {
 
     private static final String TAG = CameraManager.class.getSimpleName();
 
     private static final int MIN_FRAME_WIDTH = 240;
-    private static final int MIN_FRAME_HEIGHT = 240;
     private static final int MAX_FRAME_WIDTH = 1200; // = 5/8 * 1920
-    private static final int MAX_FRAME_HEIGHT = 675; // = 5/8 * 1080
 
     private final Context context;
     private final CameraConfigurationManager configManager;
@@ -67,8 +65,10 @@ public final class CameraManager {
     private final PreviewCallback previewCallback;
     private int curZoom;
     private int targetZoom;
+    private long AUTO_FOCUS_INTERVAL_MS;
 
-    public CameraManager(Context context) {
+    public CameraManager(Context context, long AUTO_FOCUS_INTERVAL_MS) {
+        this.AUTO_FOCUS_INTERVAL_MS = AUTO_FOCUS_INTERVAL_MS;
         this.context = context;
         this.configManager = new CameraConfigurationManager(context);
         previewCallback = new PreviewCallback(configManager);
@@ -152,12 +152,13 @@ public final class CameraManager {
         if (theCamera != null && !previewing) {
             theCamera.getCamera().startPreview();
             previewing = true;
-            autoFocusManager = new AutoFocusManager(context, theCamera.getCamera());
+            Log.d(TAG, "AUTO_FOCUS_MS=" + AUTO_FOCUS_INTERVAL_MS);
+            autoFocusManager = new AutoFocusManager(context, theCamera.getCamera(), AUTO_FOCUS_INTERVAL_MS);
         }
     }
 
     /**
-     * setZoom by double tap
+     * double-tap zoom
      */
     public synchronized void zoom() {
         OpenCamera theCamera = camera;
@@ -172,16 +173,20 @@ public final class CameraManager {
                 } else {
                     targetZoom = maxZoom / 2;
                 }
-//               parameters.setZoom(targetZoom);
-//               theCamera.getCamera().setParameters(parameters);
-                initZoomAnim(parameters,theCamera.getCamera());
+                initZoomAnim(parameters, theCamera.getCamera());
                 startZoomAnim();
             }
         }
     }
 
+    /**
+     * Initialize zoom animation
+     *
+     * @param parameters android.hardware.Camera.Parameters
+     * @param camera     android.hardware.Camera
+     */
     private void initZoomAnim(final Camera.Parameters parameters, final Camera camera) {
-        if (valueAnimator==null){
+        if (valueAnimator == null) {
             valueAnimator = ValueAnimator.ofInt(curZoom, targetZoom);
             valueAnimator.setDuration(500);
             valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -193,13 +198,16 @@ public final class CameraManager {
                     camera.setParameters(parameters);
                 }
             });
-        }else {
+        } else {
             valueAnimator.setIntValues(curZoom, targetZoom);
         }
     }
 
+    /**
+     * Tells the camera to start zooming with animation
+     */
     private void startZoomAnim() {
-        if (valueAnimator!=null&&!valueAnimator.isRunning()){
+        if (valueAnimator != null && !valueAnimator.isRunning()) {
             valueAnimator.start();
         }
     }
@@ -217,7 +225,7 @@ public final class CameraManager {
             previewCallback.setHandler(null, 0);
             previewing = false;
         }
-        if (valueAnimator!=null){
+        if (valueAnimator != null) {
             valueAnimator.cancel();
         }
     }
@@ -237,7 +245,8 @@ public final class CameraManager {
             }
             configManager.setTorch(theCamera.getCamera(), newSetting);
             if (wasAutoFocusManager) {
-                autoFocusManager = new AutoFocusManager(context, theCamera.getCamera());
+                Log.d(TAG, "AUTO_FOCUS_MS=" + AUTO_FOCUS_INTERVAL_MS);
+                autoFocusManager = new AutoFocusManager(context, theCamera.getCamera(), AUTO_FOCUS_INTERVAL_MS);
                 autoFocusManager.start();
             }
         }
@@ -277,7 +286,7 @@ public final class CameraManager {
                 return null;
             }
 
-            int width = findDesiredDimensionInRange(screenResolution.x, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH);
+            int width = findDesiredDimensionInRange(screenResolution.x);
 
             int leftOffset = (screenResolution.x - width) / 2;
             int topOffset = (screenResolution.y - width) / 2;
@@ -287,13 +296,13 @@ public final class CameraManager {
         return framingRect;
     }
 
-    private static int findDesiredDimensionInRange(int resolution, int hardMin, int hardMax) {
-        int dim = 7 * resolution / 8; // Target 5/8 of each dimension
-        if (dim < hardMin) {
-            return hardMin;
+    private static int findDesiredDimensionInRange(int resolution) {
+        int dim = 5 * resolution / 8; // Target 5/8 of each dimension
+        if (dim < CameraManager.MIN_FRAME_WIDTH) {
+            return CameraManager.MIN_FRAME_WIDTH;
         }
-        if (dim > hardMax) {
-            return hardMax;
+        if (dim > CameraManager.MAX_FRAME_WIDTH) {
+            return CameraManager.MAX_FRAME_WIDTH;
         }
         return dim;
     }
@@ -379,8 +388,8 @@ public final class CameraManager {
             return null;
         }
         // Go ahead and assume it's YUV rather than die.
-        return new PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top,
-                rect.width(), rect.height(), false);
+        return new PlanarYUVLuminanceSource(data, width, height, 0, (height - width) / 2,
+                width, width, false);
     }
 
 }

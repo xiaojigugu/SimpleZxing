@@ -19,12 +19,9 @@ package com.google.zxing.client.android;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -43,13 +40,10 @@ import android.widget.TextView;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.Result;
-import com.google.zxing.ResultMetadataType;
-import com.google.zxing.ResultPoint;
 import com.google.zxing.client.android.camera.CameraManager;
 import java.io.IOException;
 
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.Map;
 
 import static com.google.zxing.client.android.CaptureActivityHandler.msg_restart_preview;
@@ -66,35 +60,31 @@ import static com.google.zxing.client.android.CaptureActivityHandler.msg_restart
 public final class CaptureActivity extends Activity implements SurfaceHolder.Callback {
 
     private static final String TAG = CaptureActivity.class.getSimpleName();
-
+    public static final String AUTO_FOCUS="AUTO_FOCUS_INTERVAL_MS";
+    public static final String DOUBLE_TAP_ZOOM="DOUBLE_TAP_ZOOM";
+    public static final String VIBRATE="VIBRATE";
+    public static final String BEEP="BEEP";
     public static final String RESULT_TYPE = "result_type";
     public static final String RESULT_STRING = "result_string";
-    public static final int RESULT_SUCCESS = 1;
     private static final String[] ZXING_URLS = {"http://zxing.appspot.com/scan", "zxing://scan/"};
-
-    private static final Collection<ResultMetadataType> DISPLAYABLE_METADATA_TYPES =
-            EnumSet.of(ResultMetadataType.ISSUE_NUMBER,
-                    ResultMetadataType.SUGGESTED_PRICE,
-                    ResultMetadataType.ERROR_CORRECTION_LEVEL,
-                    ResultMetadataType.POSSIBLE_COUNTRY);
     private CameraManager cameraManager;
     private CaptureActivityHandler handler;
     private ViewfinderView viewfinderView;
     private ImageView ivTorch;
     private TextView statusView;
-    private View resultView;
     private Result lastResult;
     private boolean hasSurface;
-    private boolean copyToClipboard;
     private IntentSource source;
-    private String sourceUrl;
-    private ScanFromWebPageManager scanFromWebPageManager;
     private Collection<BarcodeFormat> decodeFormats;
     private Map<DecodeHintType, ?> decodeHints;
     private String characterSet;
     private InactivityTimer inactivityTimer;
     private BeepManager beepManager;
     private AmbientLightManager ambientLightManager;
+    private long AUTO_FOCUS_INTERVAL_MS;
+    private final int AUTO_FOCUS_INTERVAL_MS_DEFAULT=500;
+    private boolean vibrate;
+    private boolean playBeep;
 
     ViewfinderView getViewfinderView() {
         return viewfinderView;
@@ -122,6 +112,8 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
         ambientLightManager = new AmbientLightManager(this);
 
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+
+
     }
 
     @Override
@@ -131,18 +123,21 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
         // want to open the camera driver and measure the screen size if we're going to show the help on
         // first launch. That led to bugs where the scanning rectangle was the wrong size and partially
         // off screen.
-        cameraManager = new CameraManager(getApplication());
+        Intent intent=getIntent();
+        AUTO_FOCUS_INTERVAL_MS = intent.getIntExtra(AUTO_FOCUS,AUTO_FOCUS_INTERVAL_MS_DEFAULT);
+        cameraManager = new CameraManager(getApplication(),AUTO_FOCUS_INTERVAL_MS);
 
         viewfinderView = findViewById(R.id.viewfinder_view);
         viewfinderView.setCameraManager(cameraManager);
-        viewfinderView.setOnDounbleTapListener(new ViewfinderView.OnDounbleTapListener() {
-            @Override
-            public void onDouble(MotionEvent e) {
-                cameraManager.zoom();
-            }
-        });
 
-        resultView = findViewById(R.id.result_view);
+        if (intent.getBooleanExtra(DOUBLE_TAP_ZOOM,false)){
+            viewfinderView.setOnDounbleTapListener(new ViewfinderView.OnDounbleTapListener() {
+                @Override
+                public void onDouble(MotionEvent e) {
+                    cameraManager.zoom();
+                }
+            });
+        }
         statusView = findViewById(R.id.status_view);
         ivTorch = findViewById(R.id.ivTorch);
         ivTorch.setTag(false);
@@ -165,25 +160,19 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
         handler = null;
         lastResult = null;
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
         resetStatusView();
 
-        beepManager.updatePrefs();
+        vibrate=intent.getBooleanExtra(VIBRATE,true);
+        playBeep = intent.getBooleanExtra(BEEP,true);
+        beepManager.updatePrefs(vibrate,playBeep);
+
         ambientLightManager.start(cameraManager);
 
         inactivityTimer.onResume();
 
-        Intent intent = getIntent();
-
-        copyToClipboard = prefs.getBoolean(PreferencesActivity.KEY_COPY_TO_CLIPBOARD, true)
-                && (intent == null || intent.getBooleanExtra(Intents.Scan.SAVE_HISTORY, true));
-
         source = IntentSource.NONE;
-        sourceUrl = null;
-        scanFromWebPageManager = null;
         decodeFormats = null;
         characterSet = null;
 
@@ -223,16 +212,13 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
 
                 // Scan only products and send the result to mobile Product Search.
                 source = IntentSource.PRODUCT_SEARCH_LINK;
-                sourceUrl = dataString;
                 decodeFormats = DecodeFormatManager.PRODUCT_FORMATS;
 
             } else if (isZXingURL(dataString)) {
                 // Scan formats requested in query string (all formats if none specified).
                 // If a return URL is specified, send the results there. Otherwise, handle it ourselves.
                 source = IntentSource.ZXING_LINK;
-                sourceUrl = dataString;
                 Uri inputUri = Uri.parse(dataString);
-                scanFromWebPageManager = new ScanFromWebPageManager(inputUri);
                 decodeFormats = DecodeFormatManager.parseDecodeFormats(inputUri);
                 // Allow a sub-set of the hints to be specified by the caller.
                 decodeHints = DecodeHintManager.parseDecodeHints(inputUri);
@@ -252,6 +238,10 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
         }
     }
 
+    /**
+     * get current window orientation
+     * @return
+     */
     private int getCurrentOrientation() {
         int rotation = getWindowManager().getDefaultDisplay().getRotation();
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -377,7 +367,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
             Log.i(TAG, "handleDecode(),scanResult:" + rawResult.getText());
             Intent intent = new Intent();
             Bundle bundle = new Bundle();
-            bundle.putInt(RESULT_TYPE, RESULT_SUCCESS);
+            bundle.putInt(RESULT_TYPE, RESULT_OK);
             bundle.putString(RESULT_STRING, rawResult.getText());
             intent.putExtras(bundle);
             setResult(-1, intent);
@@ -385,48 +375,48 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
         }
     }
 
-    /**
-     * Superimpose a line for 1D or dots for 2D to highlight the key features of the barcode.
-     *
-     * @param barcode     A bitmap of the captured image.
-     * @param scaleFactor amount by which thumbnail was scaled
-     * @param rawResult   The decoded results which contains the points to draw.
-     */
-    private void drawResultPoints(Bitmap barcode, float scaleFactor, Result rawResult) {
-        ResultPoint[] points = rawResult.getResultPoints();
-        if (points != null && points.length > 0) {
-            Canvas canvas = new Canvas(barcode);
-            Paint paint = new Paint();
-            paint.setColor(getResources().getColor(R.color.result_points));
-            if (points.length == 2) {
-                paint.setStrokeWidth(4.0f);
-                drawLine(canvas, paint, points[0], points[1], scaleFactor);
-            } else if (points.length == 4 &&
-                    (rawResult.getBarcodeFormat() == BarcodeFormat.UPC_A ||
-                            rawResult.getBarcodeFormat() == BarcodeFormat.EAN_13)) {
-                // Hacky special case -- draw two lines, for the barcode and metadata
-                drawLine(canvas, paint, points[0], points[1], scaleFactor);
-                drawLine(canvas, paint, points[2], points[3], scaleFactor);
-            } else {
-                paint.setStrokeWidth(10.0f);
-                for (ResultPoint point : points) {
-                    if (point != null) {
-                        canvas.drawPoint(scaleFactor * point.getX(), scaleFactor * point.getY(), paint);
-                    }
-                }
-            }
-        }
-    }
+//    /**
+//     * Superimpose a line for 1D or dots for 2D to highlight the key features of the barcode.
+//     *
+//     * @param barcode     A bitmap of the captured image.
+//     * @param scaleFactor amount by which thumbnail was scaled
+//     * @param rawResult   The decoded results which contains the points to draw.
+//     */
+//    private void drawResultPoints(Bitmap barcode, float scaleFactor, Result rawResult) {
+//        ResultPoint[] points = rawResult.getResultPoints();
+//        if (points != null && points.length > 0) {
+//            Canvas canvas = new Canvas(barcode);
+//            Paint paint = new Paint();
+//            paint.setColor(getResources().getColor(R.color.result_points));
+//            if (points.length == 2) {
+//                paint.setStrokeWidth(4.0f);
+//                drawLine(canvas, paint, points[0], points[1], scaleFactor);
+//            } else if (points.length == 4 &&
+//                    (rawResult.getBarcodeFormat() == BarcodeFormat.UPC_A ||
+//                            rawResult.getBarcodeFormat() == BarcodeFormat.EAN_13)) {
+//                // Hacky special case -- draw two lines, for the barcode and metadata
+//                drawLine(canvas, paint, points[0], points[1], scaleFactor);
+//                drawLine(canvas, paint, points[2], points[3], scaleFactor);
+//            } else {
+//                paint.setStrokeWidth(10.0f);
+//                for (ResultPoint point : points) {
+//                    if (point != null) {
+//                        canvas.drawPoint(scaleFactor * point.getX(), scaleFactor * point.getY(), paint);
+//                    }
+//                }
+//            }
+//        }
+//    }
 
-    private static void drawLine(Canvas canvas, Paint paint, ResultPoint a, ResultPoint b, float scaleFactor) {
-        if (a != null && b != null) {
-            canvas.drawLine(scaleFactor * a.getX(),
-                    scaleFactor * a.getY(),
-                    scaleFactor * b.getX(),
-                    scaleFactor * b.getY(),
-                    paint);
-        }
-    }
+//    private static void drawLine(Canvas canvas, Paint paint, ResultPoint a, ResultPoint b, float scaleFactor) {
+//        if (a != null && b != null) {
+//            canvas.drawLine(scaleFactor * a.getX(),
+//                    scaleFactor * a.getY(),
+//                    scaleFactor * b.getX(),
+//                    scaleFactor * b.getY(),
+//                    paint);
+//        }
+//    }
 
     private void initCamera(SurfaceHolder surfaceHolder) {
         if (surfaceHolder == null) {
