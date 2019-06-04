@@ -49,7 +49,7 @@ final class BeepManager implements MediaPlayer.OnErrorListener, Closeable {
   }
 
   synchronized void updatePrefs(boolean vibrate, boolean playBeep) {
-
+    this.playBeep=playBeep;
     this.playBeep = shouldBeep(activity);
     this.vibrate=vibrate;
     if (this.playBeep && mediaPlayer == null) {
