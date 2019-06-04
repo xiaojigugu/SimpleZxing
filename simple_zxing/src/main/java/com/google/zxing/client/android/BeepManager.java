@@ -50,7 +50,9 @@ final class BeepManager implements MediaPlayer.OnErrorListener, Closeable {
 
   synchronized void updatePrefs(boolean vibrate, boolean playBeep) {
     this.playBeep=playBeep;
-    this.playBeep = shouldBeep(activity);
+    if (playBeep){
+        this.playBeep = shouldBeep(activity);
+    }
     this.vibrate=vibrate;
     if (this.playBeep && mediaPlayer == null) {
       // The volume on STREAM_SYSTEM is not adjustable, and users found it too loud,
