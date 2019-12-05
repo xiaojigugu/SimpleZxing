@@ -28,7 +28,7 @@
      }  
      
      step 3.
-     ``java
+     ```java
      //扫码
                         Intent intent = new Intent(MainActivity.this, CaptureActivity.class);
                         intent.putExtra(CaptureActivity.AUTO_FOCUS, 500);//自动对焦时间
@@ -56,4 +56,4 @@
             }
         }
     }
-     ``
+     ```
