@@ -1,5 +1,5 @@
 # ZxingDemo
-  
+  [![](https://www.jitpack.io/v/xiaojigugu/SimpleZxing.svg)](https://www.jitpack.io/#xiaojigugu/SimpleZxing)
 ###### 优化内容：  
     1.去除多余格式支持，仅支持二维码  
     2.增加自动对焦间隔控制  
@@ -23,5 +23,5 @@
     Step 2.     
     Add the dependency:  
      dependencies {  
-       implementation 'com.github.xiaojigugu:SimpleZxing:1.1.0'  
+       implementation 'com.github.xiaojigugu:SimpleZxing:1.1.2'  
      }  
