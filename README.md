@@ -27,7 +27,7 @@
  ###### Step 2.     
     Add the dependency:  
      dependencies {  
-       implementation 'com.github.xiaojigugu:SimpleZxing:1.1.2'  
+       implementation 'com.github.xiaojigugu:SimpleZxing:1.1.3'  
      }  
      
  ###### step 3.
