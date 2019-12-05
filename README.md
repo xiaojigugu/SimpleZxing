@@ -1,6 +1,8 @@
+ 
+# SimpleZxing 
 
-# SimpleZxing
-  [![](https://www.jitpack.io/v/xiaojigugu/SimpleZxing.svg)](https://www.jitpack.io/#xiaojigugu/SimpleZxing)
+[![](https://www.jitpack.io/v/xiaojigugu/SimpleZxing.svg)](https://www.jitpack.io/#xiaojigugu/SimpleZxing) 
+  
 #### 优化内容：  
     1. 去除多余格式支持，仅支持二维码  
     2. 增加自动对焦间隔控制  
@@ -59,7 +61,11 @@
     }
     
     //生成二维码
-    imageView.setImageBitmap(ZxingUtils.qrCodeWriter(300, 300, "963852"));
+    imageView.setImageBitmap(ZxingUtils.qrCodeWriter(300, 300, "这是二维码文字信息"));
+    
+    //生成带Logo的二维码
+    Bitmap bitmapLogo= BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher_round);
+    imageView.setImageBitmap(ZxingUtils.qrCodeWriterWithLogo(300,10,"这是二维码文字信息",bitmapLogo));
     
     //识别图片二维码
      String result = ZxingUtils.qrCodeReaderFromImg(imageView.getDrawable());
