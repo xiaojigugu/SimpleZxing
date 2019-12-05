@@ -28,20 +28,40 @@
 
     <ImageView
         android:id="@+id/ivTorch"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:src="@drawable/flash_on"
-        android:layout_gravity="end"
-        android:scaleType="centerInside" />
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="100dp"
+        android:scaleType="centerInside"
+        android:src="@mipmap/shanguangdeng_on" />
+
+    <ImageView
+        android:id="@+id/ivBack"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="26dp"
+        android:layout_marginStart="12dp"
+        android:scaleType="centerInside"
+        android:src="@mipmap/erweimafanhui_hong" />
+
 
     <TextView
         android:id="@+id/status_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="20dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="100dp"
         android:background="@color/transparent"
         android:text="@string/msg_default_status"
-        android:textColor="@color/status_text" />
+        android:textColor="@color/status_text"
+        android:textSize="15sp" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="双击屏幕放大缩小"
+        android:textSize="12sp"
+        android:textColor="#ffffff"
+        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginBottom="29dp"/>
 </merge>

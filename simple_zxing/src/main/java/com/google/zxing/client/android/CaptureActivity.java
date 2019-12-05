@@ -37,12 +37,13 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.DecodeHintType;
 import com.google.zxing.Result;
 import com.google.zxing.client.android.camera.CameraManager;
-import java.io.IOException;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
@@ -147,13 +148,22 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
                 boolean tag= (boolean) ivTorch.getTag();
                 if (!tag){
                     cameraManager.setTorch(true);
-                    ivTorch.setImageResource(R.drawable.flash_off);
+                    ivTorch.setImageResource(R.mipmap.sanguangdeng_off);
                     ivTorch.setTag(true);
                 }else {
                     cameraManager.setTorch(false);
-                    ivTorch.setImageResource(R.drawable.flash_on);
+                    ivTorch.setImageResource(R.mipmap.shanguangdeng_on);
                     ivTorch.setTag(false);
                 }
+            }
+        });
+
+        ImageView ivBack=findViewById(R.id.ivBack);
+        ivBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                    setResult(RESULT_CANCELED);
+                    finish();
             }
         });
 

@@ -20,6 +20,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -50,7 +51,8 @@ public final class ViewfinderView extends View {
 
     private CameraManager cameraManager;
     private final Paint paint;
-    private Bitmap resultBitmap;
+    private Bitmap resultBitmap,frameBitmap,lineBitmap;
+    private Rect rectLine;
     private final int maskColor;
     private final int resultColor;
     private final int laserColor;
@@ -75,13 +77,20 @@ public final class ViewfinderView extends View {
         // Initialize these once for performance rather than calling them every time in onDraw().
         paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         Resources resources = getResources();
+        //非识别区域颜色透明-浅黑
         maskColor = resources.getColor(R.color.viewfinder_mask);
         resultColor = resources.getColor(R.color.result_view);
+        //中间闪烁的线颜色
         laserColor = resources.getColor(R.color.viewfinder_laser);
         resultPointColor = resources.getColor(R.color.possible_result_points);
         scannerAlpha = 0;
+//        frameBitmap= BitmapFactory.decodeResource();
         possibleResultPoints = new ArrayList<>(5);
         lastPossibleResultPoints = null;
+
+        frameBitmap=BitmapFactory.decodeResource(getResources(), R.mipmap.sibian);
+        lineBitmap=BitmapFactory.decodeResource(getResources(), R.mipmap.sanmiao_jianbian);
+        rectLine=new Rect();
     }
 
     public void setCameraManager(CameraManager cameraManager) {
@@ -104,23 +113,29 @@ public final class ViewfinderView extends View {
 
         // Draw the exterior (i.e. outside the framing rect) darkened
         paint.setColor(resultBitmap != null ? resultColor : maskColor);
+
+        //绘制高亮以外的阴影遮罩(高亮矩形外的上下左右四个透明阴影)
         canvas.drawRect(0, 0, width, frame.top, paint);
         canvas.drawRect(0, frame.top, frame.left, frame.bottom + 1, paint);
         canvas.drawRect(frame.right + 1, frame.top, width, frame.bottom + 1, paint);
         canvas.drawRect(0, frame.bottom + 1, width, height, paint);
 
+        paint.setAlpha(255);
+        canvas.drawBitmap(frameBitmap,null,frame,paint);
         if (resultBitmap != null) {
             // Draw the opaque result bitmap over the scanning rectangle
             paint.setAlpha(CURRENT_POINT_OPACITY);
             canvas.drawBitmap(resultBitmap, null, frame, paint);
         } else {
 
-            // Draw a red "laser scanner" line through the middle to show decoding is active
             paint.setColor(laserColor);
             paint.setAlpha(SCANNER_ALPHA[scannerAlpha]);
             scannerAlpha = (scannerAlpha + 1) % SCANNER_ALPHA.length;
             int middle = frame.height() / 2 + frame.top;
-            canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
+            // 绘制闪烁的线
+            rectLine.set(frame.left , middle - 5, frame.right , middle + 5);
+            canvas.drawBitmap(lineBitmap,null,rectLine,paint);
+//            canvas.drawRect(frame.left + 2, middle - 1, frame.right - 1, middle + 2, paint);
 
             float scaleX = frame.width() / (float) previewFrame.width();
             float scaleY = frame.height() / (float) previewFrame.height();
@@ -135,6 +150,7 @@ public final class ViewfinderView extends View {
                 possibleResultPoints = new ArrayList<>(5);
                 lastPossibleResultPoints = currentPossible;
                 paint.setAlpha(CURRENT_POINT_OPACITY);
+                //绘制数据识别小圆点
                 paint.setColor(resultPointColor);
                 synchronized (currentPossible) {
                     for (ResultPoint point : currentPossible) {
@@ -146,6 +162,7 @@ public final class ViewfinderView extends View {
             }
             if (currentLast != null) {
                 paint.setAlpha(CURRENT_POINT_OPACITY / 2);
+                //绘制数据识别小圆点
                 paint.setColor(resultPointColor);
                 synchronized (currentLast) {
                     float radius = POINT_SIZE / 2.0f;
@@ -205,14 +222,16 @@ public final class ViewfinderView extends View {
 
         @Override
         public boolean onDoubleTap(MotionEvent e) {
-            if (onDounbleTapListener!=null){
+            if (onDounbleTapListener != null) {
                 onDounbleTapListener.onDouble(e);
             }
             return super.onDoubleTap(e);
         }
     }
+
     private OnDounbleTapListener onDounbleTapListener;
-    public interface OnDounbleTapListener{
+
+    public interface OnDounbleTapListener {
         void onDouble(MotionEvent e);
     }
 
