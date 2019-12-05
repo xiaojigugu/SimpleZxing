@@ -2,6 +2,8 @@ package com.junt.zxingdemo;
 
 import android.Manifest;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -58,6 +60,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 imageView.setImageBitmap(ZxingUtils.qrCodeWriter(300, 300, "963852"));
+            }
+        });
+
+        findViewById(R.id.btnEncodeWithLogo).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Bitmap bitmapLogo= BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher_round);
+                imageView.setImageBitmap(ZxingUtils.qrCodeWriterWithLogo(300,10,"这是二维码文字信息",bitmapLogo));
             }
         });
 
